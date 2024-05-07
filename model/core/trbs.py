@@ -6,6 +6,7 @@ from core.case_exporter import CaseExporter
 from core.case_importer import CaseImporter
 from core.evaluate import Evaluate
 from core.appreciate import Appreciate
+from core.optimize import Optimize
 from core.visualize import Visualize
 
 
@@ -64,6 +65,14 @@ class TheResponsibleBusinessSimulator:
         """This function deals with the appreciation of the outcomes"""
         case_appreciation = Appreciate(self.input_dict, self.output_dict)
         case_appreciation.appreciate_all_scenarios()
+
+    def optimize(self, scenario):
+        """
+        This function deals with finding the allocation of internal variables that results in
+        the highest appreciation
+        """
+        case_optimal = Optimize(self.input_dict.copy())
+        case_optimal.optimize(scenario)
 
     def visualize(self, visual_request, key, **kwargs):
         """This function deals with the visualizations of the outcomes"""
