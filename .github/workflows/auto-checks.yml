@@ -20,7 +20,7 @@ jobs:
       run: |
         pip install pipenv
         pipenv install --dev
-        pipenv run pip install .
+        pipenv run pip install -e .
 
     - name: Run unit tests
       run: pipenv run python -m pytest tests/
