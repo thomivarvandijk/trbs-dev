@@ -19,7 +19,7 @@ jobs:
     - name: Install dependencies and build package
       run: |
         pip install pipenv
-        pipenv install
+        pipenv install --dev
         pipenv shell
         pip install -e .
 
