@@ -16,12 +16,16 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: '3.9'
+    - name: Install pipenv
+      run: pip install pipenv
     - name: Install dependencies
+      run: pipenv install
+    - name: Build vlinder package
       run: pip install .
     - name: Run unit tests
       run: python -m pytest
 
-  lint:
+  pep8:
     runs-on: ubuntu-latest
 
     steps:
