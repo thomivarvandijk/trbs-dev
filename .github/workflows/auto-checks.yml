@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  test:
+  unittests:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,17 +16,14 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: '3.9'
-    - name: Install pipenv
-      run: pip install pipenv
-    - name: Check pipenv path
-      id: pipenv_path
-      run: which pipenv
-    - name: Install dependencies
-      run: ${{ steps.pipenv_path.outputs.stdout }} install --dev
-    - name: Build vlinder package
-      run: ${{ steps.pipenv_path.outputs.stdout }} run pip install .
+    - name: Install dependencies and build package
+      run: |
+        pip install pipenv
+        pipenv install --dev
+        pipenv run pip install -e .
+
     - name: Run unit tests
-      run: ${{ steps.pipenv_path.outputs.stdout }} run python -m pytest
+      run: pipenv run python -m pytest --import-mode=append tests/
 
   pep8:
     runs-on: ubuntu-latest
