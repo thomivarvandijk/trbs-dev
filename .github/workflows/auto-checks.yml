@@ -19,11 +19,12 @@ jobs:
     - name: Install dependencies and build package
       run: |
         pip install pipenv
-        pipenv install --dev
-        pipenv run pip install -e .
+        pipenv install
+        pipenv shell
+        pip install -e .
 
     - name: Run unit tests
-      run: pipenv run python -m pytest tests/
+      run: python -m pytest tests/
 
   pep8:
     runs-on: ubuntu-latest
