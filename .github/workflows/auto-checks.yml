@@ -13,7 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: List directory contents
-      run: ls -R /home/runner/work/trbs-dev
+      run: ls -R /home/runner/work/trbs-dev/trbs-dev/src/vlinder/data/beerwiser/
     - name: Set up Python
       uses: actions/setup-python@v2
       with:
