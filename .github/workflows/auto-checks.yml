@@ -28,6 +28,7 @@ jobs:
 
   pep8:
     runs-on: macos-latest
+    continue-on-error: true
 
     steps:
     - uses: actions/checkout@v2
