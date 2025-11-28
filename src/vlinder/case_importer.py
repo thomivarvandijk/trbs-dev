@@ -2,6 +2,7 @@
 This module contains the CaseImporter() class. This class deals with importing and validating an RBS case.
 """
 from pathlib import Path
+from collections import Counter
 import os
 import warnings
 import pandas as pd
@@ -11,7 +12,8 @@ from vlinder.utils import check_numeric
 
 class TemplateError(Exception):
     """
-    This class deals with the error handling of our CaseImporter().
+    Custom exception for errors encountered during case import operations.
+    Used to signal issues with template structure or file paths in CaseImporter.
     """
 
     def __init__(self, message):  # ignore warning about super-init | pylint: disable=W0231
@@ -21,10 +23,20 @@ class TemplateError(Exception):
         return f"Template Error: {self.message}"
 
 
-class CaseImporter:  # pylint: disable=too-few-public-methods
+class CaseImporter:
     """
-    This class deals with import and validation of an RBS case, either as csv, xlsx or json.
-    :param file_path: Path to folder that contains a folder structure of at least "name" - "file_format"
+    Handles importing and validating an RBS case from CSV, XLSX, or JSON formats.
+
+    Attributes:
+        path_base (Path): Base path to the case data directory.
+        file_path (str): Root folder containing case data.
+        name (str): Name of the case.
+        extension (str): Data format ('csv', 'xlsx', or 'json').
+        importers (dict): Functions for importing tables in different formats.
+        dataframes_dict (dict): Stores imported dataframes by table name.
+        input_dict (dict): Stores input data for the case.
+        validate_dict (dict): Template validators built from template.xlsx.
+        mandatory_fields (dict): Fields that must not be empty for each table.
     """
 
     def __init__(self, file_path, name, extension):
@@ -57,6 +69,7 @@ class CaseImporter:  # pylint: disable=too-few-public-methods
             "theme_weights": ["theme", "weight"],
             "key_output_weights": ["key_output", "weight"],
             "scenario_weights": ["scenario", "weights"],
+            "user_appreciation_grids": ["key_output", "key_output_value", "appreciation_value"]
         }
 
     @staticmethod
@@ -291,8 +304,29 @@ class CaseImporter:  # pylint: disable=too-few-public-methods
 
         self.input_dict["key_output_relative_weight"] = np.array(relative_weights)
 
+    def _make_sinoid_appreciation_grid(self, start, end, precision=10) -> None:
+        """
+        This function calculates the sinoid appreciation grid for key outputs that are not linear.
+        """
+        print("Need to calculate sinoid appreciation grid")
+
+    def _convert_to_appreciation_grid(self) -> None:
+        """
+        TBD
+        """
+        appreciation_grid = []
+        for id, key_output in enumerate(self.input_dict['key_outputs']):
+            # determine whether we need to use the user appreciation grid
+            if key_output in self.input_dict['user_appreciation_grid_key_output']:
+                print(f"Using user appreciation grid for {key_output} ({id})")
+                if self.input_dict['key_output_linear'][id] == 0:
+                    self._make_sinoid_appreciation_grid()
+            else:
+                print(f"Using automatic appreciation for {key_output} ({id})")
+
     def _enrich_input_dict(self):
         self._convert_to_relative_weights()
+        self._convert_to_appreciation_grid()
 
     def _col(self, table, col_name=None) -> set:
         """
@@ -366,29 +400,45 @@ class CaseImporter:  # pylint: disable=too-few-public-methods
                     f"do not have a value assigned for '{instr}'."
                 )
 
-    def _validate_start_and_endpoint(self):
+    def _validate_user_appreciation_grid(self):
         """
         This function checks whether automatic and start / end points are used correctly.
         """
-        table = self.dataframes_dict["key_outputs"]
+        # Check 1: if non-automatic there should be a valid custom appreciation function defined
+        df = self.dataframes_dict["key_outputs"]
+        need_custom = set(df[df["automatic"] == 0]["key_output"])
+        has_custom = Counter(self.dataframes_dict["user_appreciation_grids"]["key_output"].tolist())
 
-        # Check 1: if automatic = 1, there should not be any start- or endpoints provided
-        automatic_condition = (table["automatic"] == 1) & (~np.isnan(table["start"]) | ~np.isnan(table["end"]))
-        invalid_rows = table[automatic_condition]
-        if not invalid_rows.empty:
-            raise TemplateError(
-                f"Key output(s) {set(invalid_rows['key_output'])} with automatic = 1, but also a start and/or endpoint"
-            )
+        for key_output in need_custom:
+            # 1A: a valid custom appreciation has at least two defined points
+            if key_output not in has_custom or has_custom[key_output] < 2:
+                raise TemplateError(
+                    f"Non-automatic key output '{key_output}' needs at least two points in user_appreciation_grids."
+                )
 
-        # Check 2: if automatic = 0, there should be start and endpoints provided
-        automatic_condition = (table["automatic"] == 0) & (np.isnan(table["start"]) | np.isnan(table["end"]))
+            # 1B: a non-linear custom appreciation has exactly two points.
+            is_sinoid = not df[(df["key_output"] == key_output) & (df["linear"] == 0)].empty
+            if is_sinoid and has_custom[key_output] > 2:
+                raise TemplateError(
+                    f"Non-automatic non-linear key outputs are only supported for two points in "
+                    f"user_appreciation_grids. This is violated by '{key_output}.'"
+                )
 
-        invalid_rows = table[automatic_condition]
-        if not invalid_rows.empty:
-            raise TemplateError(
-                f"Key output(s) {set(invalid_rows['key_output'])} with automatic = 0 "
-                f"have missing start- and/or endpoint"
-            )
+        # Check 2: if automatic there should not be a custom appreciation function defined
+        no_custom = set(df[df["automatic"] == 1]["key_output"])
+        for key_output in no_custom:
+            if key_output in no_custom and key_output in has_custom:
+                raise TemplateError(
+                    f"Automatic key output '{key_output}' should not contain any points in user_appreciation_grids"
+                )
+
+        # Check 3: has_custom should actually match to a key_output
+        for key_output in has_custom:
+            if key_output not in (no_custom | need_custom):
+                raise TemplateError(
+                    f"Key output '{key_output}' in user_appreciation_grids does not match any key output in "
+                    f"key_outputs. Please check the spelling."
+                )
 
     def _validate_dataframes(self):
         """
@@ -409,8 +459,8 @@ class CaseImporter:  # pylint: disable=too-few-public-methods
         self._validate_input_completeness("decision_makers_option", ivi)
         self._validate_input_completeness("scenario", evi)
 
-        # 3. Check on start and endpoints
-        self._validate_start_and_endpoint()
+        # 3. Check on correctness of custom appreciations
+        self._validate_user_appreciation_grid()
 
     def import_case(self) -> dict:
         """
