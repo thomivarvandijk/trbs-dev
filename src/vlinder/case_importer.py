@@ -69,7 +69,7 @@ class CaseImporter:
             "theme_weights": ["theme", "weight"],
             "key_output_weights": ["key_output", "weight"],
             "scenario_weights": ["scenario", "weights"],
-            "user_appreciation_grids": ["key_output", "key_output_value", "appreciation_value"]
+            "user_appreciation_grids": ["key_output", "key_output_value", "appreciation_value"],
         }
 
     @staticmethod
@@ -315,11 +315,11 @@ class CaseImporter:
         TBD
         """
         appreciation_grid = []
-        for id, key_output in enumerate(self.input_dict['key_outputs']):
+        for id, key_output in enumerate(self.input_dict["key_outputs"]):
             # determine whether we need to use the user appreciation grid
-            if key_output in self.input_dict['user_appreciation_grid_key_output']:
+            if key_output in self.input_dict["user_appreciation_grid_key_output"]:
                 print(f"Using user appreciation grid for {key_output} ({id})")
-                if self.input_dict['key_output_linear'][id] == 0:
+                if self.input_dict["key_output_linear"][id] == 0:
                     self._make_sinoid_appreciation_grid()
             else:
                 print(f"Using automatic appreciation for {key_output} ({id})")
